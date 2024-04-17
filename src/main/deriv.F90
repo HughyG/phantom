@@ -71,7 +71,8 @@ subroutine derivs(icall,npart,nactive,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,&
  real,         intent(in)    :: fext(:,:)
  real(kind=4), intent(out)   :: divcurlv(:,:)
  real(kind=4), intent(out)   :: divcurlB(:,:)
- real,         intent(in)    :: Bxyz(:,:),Bevol(:,:)
+ real,         intent(in)    :: Bevol(:,:)
+ real,         intent(out)   :: Bxyz(:,:)
  real,         intent(out)   :: dBevol(:,:)
  real,         intent(inout) :: rad(:,:)
  real,         intent(out)   :: eos_vars(:,:)
@@ -222,7 +223,7 @@ end subroutine derivs
 !--------------------------------------
 subroutine get_derivs_global(tused,dt_new,dt)
  use part,   only:npart,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,&
-                Bxyz,Bevol,dBevol,rad,drad,radprop,dustprop,ddustprop,filfac&
+                Bxyz,Bevol,dBevol,rad,drad,radprop,dustprop,ddustprop,filfac, &
                 dustfrac,ddustevol,eos_vars,pxyzu,dens,metrics,dustevol
  use timing, only:printused,getused
  use io,     only:id,master

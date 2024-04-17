@@ -115,7 +115,7 @@ contains
 !  this is the main routine for the whole code
 !+
 !----------------------------------------------------------------
-subroutine densityiterate(icall,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bevol,stressmax,&
+subroutine densityiterate(icall,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bxyz,Bevol,stressmax,&
                           fxyzu,fext,alphaind,gradh,rad,radprop,dvdx)
  use dim,       only:maxp,maxneigh,ndivcurlv,ndivcurlB,maxalpha,mhd_nonideal,nalpha,&
                      use_dust,fast_divcurlB,mpi,gr
@@ -140,7 +140,7 @@ subroutine densityiterate(icall,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bevol
  integer,      intent(in)    :: icall,npart,nactive
  real,         intent(inout) :: xyzh(:,:)
  real,         intent(in)    :: vxyzu(:,:),fxyzu(:,:),fext(:,:)
- real,         intent(in)    :: Bevol(:,:)
+ real,         intent(in)    :: Bxyz(:,:),Bevol(:,:)
  real(kind=4), intent(out)   :: divcurlv(:,:)
  real(kind=4), intent(out)   :: divcurlB(:,:)
  real(kind=4), intent(out)   :: alphaind(:,:)
@@ -236,6 +236,7 @@ subroutine densityiterate(icall,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bevol
 !$omp shared(fext) &
 !$omp shared(gradh) &
 !$omp shared(iphase) &
+!$omp shared(Bxyz) &
 !$omp shared(Bevol) &
 !$omp shared(divcurlv) &
 !$omp shared(divcurlB) &
@@ -341,7 +342,7 @@ subroutine densityiterate(icall,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bevol
        endif
     endif
 
-    call compute_cell(cell,listneigh,nneigh,getdv,getdB,Bevol,xyzh,vxyzu,fxyzu,fext,xyzcache,rad)
+    call compute_cell(cell,listneigh,nneigh,getdv,getdB,Bxyz,Bevol,xyzh,vxyzu,fxyzu,fext,xyzcache,rad)
 
     if (do_export) then
        call write_cell(stack_waiting,cell)
@@ -374,7 +375,7 @@ subroutine densityiterate(icall,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bevol
                 nrelink = nrelink + 1
              endif
 
-             call compute_cell(cell,listneigh,nneigh,getdv,getdB,Bevol,xyzh,vxyzu,fxyzu,fext,xyzcache,rad)
+             call compute_cell(cell,listneigh,nneigh,getdv,getdB,Bxyz,Bevol,xyzh,vxyzu,fxyzu,fext,xyzcache,rad)
 
              if (do_export) then
                 call write_cell(stack_waiting,cell)
@@ -444,7 +445,7 @@ subroutine densityiterate(icall,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bevol
           call get_neighbour_list(-1,listneigh,nneigh,xyzh,xyzcache,isizecellcache,getj=.false., &
                                   cell_xpos=cell%xpos,cell_xsizei=cell%xsizei,cell_rcuti=cell%rcuti)
 
-          call compute_cell(cell,listneigh,nneigh,getdv,getdB,Bevol,xyzh,vxyzu,fxyzu,fext,xyzcache,rad)
+          call compute_cell(cell,listneigh,nneigh,getdv,getdB,Bxyz,Bevol,xyzh,vxyzu,fxyzu,fext,xyzcache,rad)
 
           remote_export = .false.
           remote_export(cell%owner+1) = .true. ! use remote_export array to send back to the owner
@@ -505,7 +506,7 @@ subroutine densityiterate(icall,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bevol
              call reserve_stack(stack_redo,cell%waiting_index)
              call send_cell(cell,remote_export,irequestsend,xsendbuf,cell_counters,mpitype) ! send the cell to remote
 
-             call compute_cell(cell,listneigh,nneigh,getdv,getdB,Bevol,xyzh,vxyzu,fxyzu,fext,xyzcache,rad)
+             call compute_cell(cell,listneigh,nneigh,getdv,getdB,Bxyz,Bevol,xyzh,vxyzu,fxyzu,fext,xyzcache,rad)
 
              call write_cell(stack_redo,cell)
           else
@@ -1191,7 +1192,7 @@ end subroutine reduce_and_print_neighbour_stats
 !--------------------------------------------------------------------------
 !+
 !--------------------------------------------------------------------------
-pure subroutine compute_cell(cell,listneigh,nneigh,getdv,getdB,Bevol,xyzh,vxyzu,fxyzu,fext, &
+pure subroutine compute_cell(cell,listneigh,nneigh,getdv,getdB,Bxyz,Bevol,xyzh,vxyzu,fxyzu,fext, &
                              xyzcache,rad)
  use part,        only:get_partinfo,iamgas,igas,maxphase
  use viscosity,   only:irealvisc
@@ -1204,7 +1205,7 @@ pure subroutine compute_cell(cell,listneigh,nneigh,getdv,getdB,Bevol,xyzh,vxyzu,
  integer,         intent(in)     :: nneigh
  logical,         intent(in)     :: getdv
  logical,         intent(in)     :: getdB
- real,            intent(in)     :: Bevol(:,:)
+ real,            intent(in)     :: Bxyz(:,:),Bevol(:,:)
  real,            intent(in)     :: xyzh(:,:),vxyzu(:,:),fxyzu(:,:),fext(:,:)
  real,            intent(in)     :: xyzcache(isizecellcache,3)
  real,            intent(in)     :: rad(:,:)

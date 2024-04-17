@@ -360,7 +360,7 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
     if (npart > 0) then
        call set_linklist(npart,npart,xyzh,vxyzu)
        fxyzu = 0.
-       call densityiterate(2,npart,npart,xyzh,vxyzu,divcurlv,divcurlB,Bevol,stressmax,&
+       call densityiterate(2,npart,npart,xyzh,vxyzu,divcurlv,divcurlB,Bxyz,Bevol,stressmax,&
                               fxyzu,fext,alphaind,gradh,rad,radprop,dvdx)
     endif
 
@@ -600,7 +600,7 @@ subroutine startrun(infile,logfile,evfile,dumpfile,noread)
  !$omp end parallel do
 
  do j=1,nderivinit
-    if (ntot > 0) call derivs(1,npart,npart,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,Bevol,dBevol,&
+    if (ntot > 0) call derivs(1,npart,npart,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,Bxyz,Bevol,dBevol,&
                               rad,drad,radprop,dustprop,ddustprop,dustevol,ddustevol,filfac,&
                               dustfrac,eos_vars,time,0.,dtnew_first,pxyzu,dens,metrics)
 #ifdef LIVE_ANALYSIS

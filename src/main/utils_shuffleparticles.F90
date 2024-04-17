@@ -69,7 +69,7 @@ subroutine shuffleparticles(iprint,npart,xyzh,pmass,duniform,rsphere,dsphere,dme
                             xyzh_ref,pmass_ref,n_ref,is_setup,prefix)
  use io,           only:id,master,fatal
  use dim,          only:maxneigh,maxp_hard
- use part,         only:vxyzu,divcurlv,divcurlB,Bevol,fxyzu,fext,alphaind,iphase,igas
+ use part,         only:vxyzu,divcurlv,divcurlB,Bxyz,Bevol,fxyzu,fext,alphaind,iphase,igas
  use part,         only:gradh,rad,radprop,dvdx,rhoh,hrho
  use densityforce, only:densityiterate
  use linklist,     only:ncells,ifirstincell,set_linklist,get_neighbour_list,allocate_linklist,listneigh
@@ -299,7 +299,7 @@ subroutine shuffleparticles(iprint,npart,xyzh,pmass,duniform,rsphere,dsphere,dme
        nlink      = nlink + 1
        link_shift = 0.
     endif
-    call densityiterate(2,npart,npart,xyzh,vxyzu,divcurlv,divcurlB,Bevol,stressmax,&
+    call densityiterate(2,npart,npart,xyzh,vxyzu,divcurlv,divcurlB,Bxyz,Bevol,stressmax,&
                                fxyzu,fext,alphaind,gradh,rad,radprop,dvdx)
     if (iprofile==ireference) then
        call set_linklist(n_part,n_part,xyzh,vxyzu)
