@@ -68,9 +68,9 @@ module forces
        ivyi            = 6,  &
        ivzi            = 7,  &
        ieni            = 8,  &
-       iBevolxi        = 9,  &
-       iBevolyi        = 10, &
-       iBevolzi        = 11, &
+       iBxi            = 9,  &
+       iByi            = 10, &
+       iBzi            = 11, &
        ipsi            = 12, &
        igradhi1        = 13, &
        igradhi2        = 14, &
@@ -180,7 +180,7 @@ contains
 !  compute all forces and rates of change on the particles
 !+
 !----------------------------------------------------------------
-subroutine force(icall,npart,xyzh,vxyzu,fxyzu,divcurlv,divcurlB,Bevol,dBevol,&
+subroutine force(icall,npart,xyzh,vxyzu,fxyzu,divcurlv,divcurlB,Bxyz,Bevol,dBevol,&
                  rad,drad,radprop,dustprop,dustgasprop,dustfrac,ddustevol,fext,fxyz_drag,&
                  ipart_rhomax,dt,stressmax,eos_vars,dens,metrics)
 
@@ -241,7 +241,7 @@ subroutine force(icall,npart,xyzh,vxyzu,fxyzu,divcurlv,divcurlB,Bevol,dBevol,&
  real,         intent(inout) :: fxyz_drag(:,:)
  real,         intent(in)    :: eos_vars(:,:)
  real,         intent(out)   :: fxyzu(:,:),ddustevol(:,:)
- real,         intent(in)    :: Bevol(:,:)
+ real,         intent(in)    :: Bxyz(:,:),Bevol(:,:)
  real,         intent(out)   :: dBevol(:,:)
  real(kind=4), intent(inout) :: divcurlv(:,:)
  real(kind=4), intent(in)    :: divcurlB(:,:)
@@ -408,7 +408,7 @@ subroutine force(icall,npart,xyzh,vxyzu,fxyzu,divcurlv,divcurlB,Bevol,dBevol,&
 !$omp shared(dvdx) &
 !$omp shared(gradh) &
 !$omp shared(divcurlb) &
-!$omp shared(bevol) &
+!$omp shared(Bxyz,Bevol) &
 !$omp shared(rad,radprop,drad) &
 !$omp shared(eta_nimhd) &
 !$omp shared(alphaind) &
@@ -491,7 +491,7 @@ subroutine force(icall,npart,xyzh,vxyzu,fxyzu,divcurlv,divcurlB,Bevol,dBevol,&
 
     cell%icell = icell
 
-    call start_cell(cell,iphase,xyzh,vxyzu,gradh,divcurlv,divcurlB,dvdx,Bevol, &
+    call start_cell(cell,iphase,xyzh,vxyzu,gradh,divcurlv,divcurlB,dvdx,Bxyz,Bevol, &
                     dustfrac,dustprop,fxyz_dragold,eta_nimhd,eos_vars,alphaind,stressmax,&
                     rad,radprop,dens,metrics,dt)
     if (cell%npcell == 0) cycle over_cells
@@ -521,7 +521,7 @@ subroutine force(icall,npart,xyzh,vxyzu,fxyzu,divcurlv,divcurlB,Bevol,dBevol,&
        endif
     endif
 
-    call compute_cell(cell,listneigh,nneigh,Bevol,xyzh,vxyzu,fxyzu, &
+    call compute_cell(cell,listneigh,nneigh,Bxyz,Bevol,xyzh,vxyzu,fxyzu, &
                       iphase,divcurlv,divcurlB,alphaind,eta_nimhd,eos_vars, &
                       dustfrac,dustprop,fxyz_dragold,gradh,ibinnow_m1,ibin_wake,stressmax,xyzcache,&
                       rad,radprop,dens,metrics,dt)
@@ -581,7 +581,7 @@ subroutine force(icall,npart,xyzh,vxyzu,fxyzu,divcurlv,divcurlB,Bevol,dBevol,&
                                getj=.true.,f=cell%fgrav,&
                                cell_xpos=cell%xpos,cell_xsizei=cell%xsizei,cell_rcuti=cell%rcuti)
 
-       call compute_cell(cell,listneigh,nneigh,Bevol,xyzh,vxyzu,fxyzu, &
+       call compute_cell(cell,listneigh,nneigh,Bxyz,Bevol,xyzh,vxyzu,fxyzu, &
                          iphase,divcurlv,divcurlB,alphaind,eta_nimhd,eos_vars, &
                          dustfrac,dustprop,fxyz_dragold,gradh,ibinnow_m1,ibin_wake,stressmax,xyzcache,&
                          rad,radprop,dens,metrics,dt)
@@ -884,7 +884,7 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
                           beta, &
                           pmassi,listneigh,nneigh,xyzcache,fsum,vsigmax, &
                           ifilledcellcache,realviscosity,useresistiveheat, &
-                          xyzh,vxyzu,Bevol,iphasei,iphase,massoftype, &
+                          xyzh,vxyzu,Bxyz,Bevol,iphasei,iphase,massoftype, &
                           divcurlB,eta_nimhd, eos_vars, &
                           dustfrac,dustprop,fxyz_drag,gradh,divcurlv,alphaind, &
                           alphau,alphaB,bulkvisc,stressmax,&
@@ -937,7 +937,7 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
  logical,         intent(in)    :: realviscosity,useresistiveheat
  real,            intent(in)    :: xyzh(:,:)
  real,            intent(inout) :: vxyzu(:,:)
- real,            intent(in)    :: Bevol(:,:)
+ real,            intent(in)    :: Bxyz(:,:),Bevol(:,:)
  real(kind=4),    intent(in)    :: divcurlB(:,:)
  real,            intent(in)    :: dustfrac(:,:)
  real,            intent(in)    :: dustprop(:,:)
@@ -1111,9 +1111,9 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
 
  ! various pre-calculated quantities
  if (mhd) then
-    Bxi  = xpartveci(iBevolxi)*rhoi
-    Byi  = xpartveci(iBevolyi)*rhoi
-    Bzi  = xpartveci(iBevolzi)*rhoi
+    Bxi  = xpartveci(iBxi)
+    Byi  = xpartveci(iByi)
+    Bzi  = xpartveci(iBzi)
     psii = xpartveci(ipsi)
  else
     Bxi  = 0.0
@@ -1381,9 +1381,9 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
           if (mhd) then
              hj   = xyzh(4,j)
              rhoj = rhoh(hj,pmassj)
-             Bxj  = Bevol(1,j)*rhoj
-             Byj  = Bevol(2,j)*rhoj
-             Bzj  = Bevol(3,j)*rhoj
+             Bxj  = Bxyz(1,j)
+             Byj  = Bxyz(2,j)
+             Bzj  = Bxyz(3,j)
              psij = Bevol(4,j)
 
              dBx = Bxi - Bxj
@@ -2053,7 +2053,7 @@ end subroutine get_stress
 
 !----------------------------------------------------------------
 
-subroutine start_cell(cell,iphase,xyzh,vxyzu,gradh,divcurlv,divcurlB,dvdx,Bevol, &
+subroutine start_cell(cell,iphase,xyzh,vxyzu,gradh,divcurlv,divcurlB,dvdx,Bxyz,Bevol, &
                      dustfrac,dustprop,fxyz_drag,eta_nimhd,eos_vars,alphaind,stressmax,&
                      rad,radprop,dens,metrics,dt)
 
@@ -2078,7 +2078,7 @@ subroutine start_cell(cell,iphase,xyzh,vxyzu,gradh,divcurlv,divcurlB,dvdx,Bevol,
  real(kind=4),       intent(in)    :: divcurlv(:,:)
  real(kind=4),       intent(in)    :: divcurlB(:,:)
  real(kind=4),       intent(in)    :: dvdx(:,:)
- real,               intent(in)    :: Bevol(:,:)
+ real,               intent(in)    :: Bxyz(:,:),Bevol(:,:)
  real,               intent(in)    :: dustfrac(:,:)
  real,               intent(in)    :: dustprop(:,:)
  real,               intent(in)    :: fxyz_drag(:,:)
@@ -2171,9 +2171,9 @@ subroutine start_cell(cell,iphase,xyzh,vxyzu,gradh,divcurlv,divcurlB,dvdx,Bevol,
        endif
 
        if (mhd) then
-          Bxi = Bevol(1,i) * rhoi ! B/rho -> B (conservative to primitive)
-          Byi = Bevol(2,i) * rhoi
-          Bzi = Bevol(3,i) * rhoi
+          Bxi = Bxyz(1,i)
+          Byi = Bxyz(2,i)
+          Bzi = Bxyz(3,i)
           if (mhd_nonideal) then
              B2i = Bxi**2 + Byi**2 + Bzi**2
              if (B2i > 0.0) then
@@ -2258,9 +2258,9 @@ subroutine start_cell(cell,iphase,xyzh,vxyzu,gradh,divcurlv,divcurlB,dvdx,Bevol,
     endif
     if (mhd) then
        if (iamgasi) then
-          cell%xpartvec(iBevolxi,cell%npcell)      = Bevol(1,i)
-          cell%xpartvec(iBevolyi,cell%npcell)      = Bevol(2,i)
-          cell%xpartvec(iBevolzi,cell%npcell)      = Bevol(3,i)
+          cell%xpartvec(iBxi,cell%npcell)          = Bxyz(1,i)
+          cell%xpartvec(iByi,cell%npcell)          = Bxyz(2,i)
+          cell%xpartvec(iBzi,cell%npcell)          = Bxyz(3,i)
           cell%xpartvec(ipsi,cell%npcell)          = Bevol(4,i)
 
           cell%xpartvec(idivBi,  cell%npcell)      = divcurlB(1,i)
@@ -2268,7 +2268,7 @@ subroutine start_cell(cell,iphase,xyzh,vxyzu,gradh,divcurlv,divcurlB,dvdx,Bevol,
           cell%xpartvec(icurlByi,cell%npcell)      = divcurlB(3,i)
           cell%xpartvec(icurlBzi,cell%npcell)      = divcurlB(4,i)
        else
-          cell%xpartvec(iBevolxi:ipsi,cell%npcell) = 0. ! to avoid compiler warning
+          cell%xpartvec(iBxi:ipsi,cell%npcell) = 0. ! to avoid compiler warning
        endif
     endif
 
@@ -2356,7 +2356,7 @@ subroutine start_cell(cell,iphase,xyzh,vxyzu,gradh,divcurlv,divcurlB,dvdx,Bevol,
 
 end subroutine start_cell
 
-subroutine compute_cell(cell,listneigh,nneigh,Bevol,xyzh,vxyzu,fxyzu, &
+subroutine compute_cell(cell,listneigh,nneigh,Bxyz,Bevol,xyzh,vxyzu,fxyzu, &
                         iphase,divcurlv,divcurlB,alphaind,eta_nimhd, eos_vars, &
                         dustfrac,dustprop,fxyz_drag,gradh,ibinnow_m1,ibin_wake,stressmax,xyzcache,&
                         rad,radprop,dens,metrics,dt)
@@ -2370,7 +2370,7 @@ subroutine compute_cell(cell,listneigh,nneigh,Bevol,xyzh,vxyzu,fxyzu, &
 
  integer,         intent(in)     :: listneigh(:)
  integer,         intent(in)     :: nneigh
- real,            intent(in)     :: Bevol(:,:)
+ real,            intent(in)     :: Bxyz(:,:),Bevol(:,:)
  real,            intent(in)     :: xyzh(:,:)
  real,            intent(inout)  :: vxyzu(:,:)
  real,            intent(in)     :: fxyzu(:,:)
@@ -2457,7 +2457,7 @@ subroutine compute_cell(cell,listneigh,nneigh,Bevol,xyzh,vxyzu,fxyzu, &
                          beta, &
                          pmassi,listneigh,nneigh,xyzcache,cell%fsums(:,ip),cell%vsigmax(ip), &
                          .true.,realviscosity,useresistiveheat, &
-                         xyzh,vxyzu,Bevol,cell%iphase(ip),iphase,massoftype, &
+                         xyzh,vxyzu,Bxyz,Bevol,cell%iphase(ip),iphase,massoftype, &
                          divcurlB,eta_nimhd,eos_vars, &
                          dustfrac,dustprop,fxyz_drag,gradh,divcurlv,alphaind, &
                          alphau,alphaB,bulkvisc,stressmax, &
@@ -2677,9 +2677,9 @@ subroutine finish_cell_and_store_results(icall,cell,fxyzu,xyzh,vxyzu,poten,dt,dv
        vwavei  = xpartveci(ivwavei)
 
        if (mhd) then
-          Bxyzi(1) = xpartveci(iBevolxi) * rhoi
-          Bxyzi(2) = xpartveci(iBevolyi) * rhoi
-          Bxyzi(3) = xpartveci(iBevolzi) * rhoi
+          Bxyzi(1) = xpartveci(iBxi)
+          Bxyzi(2) = xpartveci(iByi)
+          Bxyzi(3) = xpartveci(iBzi)
           B2i      = Bxyzi(1)**2 + Bxyzi(2)**2 + Bxyzi(3)**2
           divBi    = xpartveci(idivBi)
        endif

@@ -35,7 +35,7 @@ contains
 !+
 !-------------------------------------------------------------
 subroutine derivs(icall,npart,nactive,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,&
-                  Bevol,dBevol,rad,drad,radprop,dustprop,ddustprop,&
+                  Bxyz,Bevol,dBevol,rad,drad,radprop,dustprop,ddustprop,&
                   dustevol,ddustevol,dustfrac,eos_vars,time,dt,dtnew,pxyzu,dens,metrics)
  use dim,            only:maxvxyzu,mhd,fast_divcurlB,gr,periodic,do_radiation,&
                           sink_radiation,use_dustgrowth,ind_timesteps
@@ -44,7 +44,7 @@ subroutine derivs(icall,npart,nactive,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,&
  use densityforce,   only:densityiterate
  use ptmass,         only:ipart_rhomax,ptmass_calc_enclosed_mass,ptmass_boundary_crossing
  use externalforces, only:externalforce
- use part,           only:dustgasprop,dvdx,Bxyz,set_boundaries_to_active,&
+ use part,           only:dustgasprop,dvdx,set_boundaries_to_active,&
                           nptmass,xyzmh_ptmass,sinks_have_heating,dust_temp,VrelVf,fxyz_drag
  use timestep_ind,   only:nbinmax
  use timestep,       only:dtmax,dtcourant,dtforce,dtrad
@@ -70,7 +70,7 @@ subroutine derivs(icall,npart,nactive,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,&
  real,         intent(in)    :: fext(:,:)
  real(kind=4), intent(out)   :: divcurlv(:,:)
  real(kind=4), intent(out)   :: divcurlB(:,:)
- real,         intent(in)    :: Bevol(:,:)
+ real,         intent(in)    :: Bxyz(:,:),Bevol(:,:)
  real,         intent(out)   :: dBevol(:,:)
  real,         intent(inout) :: rad(:,:)
  real,         intent(out)   :: eos_vars(:,:)
@@ -125,13 +125,13 @@ subroutine derivs(icall,npart,nactive,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,&
 ! calculate density by direct summation
 !
  if (icall==1) then
-    call densityiterate(1,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bevol,&
+    call densityiterate(1,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bxyz,Bevol,&
                         stressmax,fxyzu,fext,alphaind,gradh,rad,radprop,dvdx)
     if (.not. fast_divcurlB) then
        ! Repeat the call to calculate all the non-density-related quantities in densityiterate.
        ! This needs to be separate for an accurate calculation of divcurlB which requires an up-to-date rho.
        ! if fast_divcurlB = .false., then all additional quantities are calculated during the previous call
-       call densityiterate(3,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bevol,&
+       call densityiterate(3,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,Bxyz,Bevol,&
                            stressmax,fxyzu,fext,alphaind,gradh,rad,radprop,dvdx)
     endif
     set_boundaries_to_active = .false.     ! boundary particles are no longer treated as active
@@ -141,7 +141,7 @@ subroutine derivs(icall,npart,nactive,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,&
  if (gr) then
     call cons2primall(npart,xyzh,metrics,pxyzu,vxyzu,dens,eos_vars)
  else
-    call cons2prim_everything(npart,xyzh,vxyzu,dvdx,rad,eos_vars,radprop,Bevol,Bxyz,dustevol,dustfrac,alphaind)
+    call cons2prim_everything(npart,xyzh,vxyzu,dvdx,rad,eos_vars,radprop,Bxyz,Bevol,dustevol,dustfrac,alphaind)
  endif
  call do_timing('cons2prim',tlast,tcpulast)
 
@@ -164,7 +164,7 @@ subroutine derivs(icall,npart,nactive,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,&
 #endif
  stressmax = 0.
  if (sinks_have_heating(nptmass,xyzmh_ptmass)) call ptmass_calc_enclosed_mass(nptmass,npart,xyzh)
- call force(icall,npart,xyzh,vxyzu,fxyzu,divcurlv,divcurlB,Bevol,dBevol,&
+ call force(icall,npart,xyzh,vxyzu,fxyzu,divcurlv,divcurlB,Bxyz,Bevol,dBevol,&
             rad,drad,radprop,dustprop,dustgasprop,dustfrac,ddustevol,fext,fxyz_drag,&
             ipart_rhomax,dt,stressmax,eos_vars,dens,metrics)
  call do_timing('force',tlast,tcpulast)
@@ -214,7 +214,7 @@ end subroutine derivs
 !--------------------------------------
 subroutine get_derivs_global(tused,dt_new,dt)
  use part,   only:npart,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,&
-                Bevol,dBevol,rad,drad,radprop,dustprop,ddustprop,&
+                Bxyz,Bevol,dBevol,rad,drad,radprop,dustprop,ddustprop,&
                 dustfrac,ddustevol,eos_vars,pxyzu,dens,metrics,dustevol
  use timing, only:printused,getused
  use io,     only:id,master
@@ -229,7 +229,7 @@ subroutine get_derivs_global(tused,dt_new,dt)
  dti = 0.
  if (present(dt)) dti = dt
  call getused(t1)
- call derivs(1,npart,npart,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,Bevol,dBevol,&
+ call derivs(1,npart,npart,xyzh,vxyzu,fxyzu,fext,divcurlv,divcurlB,Bxyz,Bevol,dBevol,&
              rad,drad,radprop,dustprop,ddustprop,dustevol,ddustevol,dustfrac,eos_vars,&
              time,dti,dtnew,pxyzu,dens,metrics)
  call getused(t2)

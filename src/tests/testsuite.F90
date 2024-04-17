@@ -68,6 +68,7 @@ subroutine testsuite(string,first,last,ntests,npass,nfail)
  use testpoly,     only:test_poly
  use testdamping,  only:test_damping
  use testradiation,only:test_radiation
+ use testexternB,  only:test_externB
 #ifdef MPI
  use testmpi,      only:test_mpi
 #endif
@@ -81,6 +82,7 @@ subroutine testsuite(string,first,last,ntests,npass,nfail)
  logical :: doptmass,dognewton,dosedov,doexternf,doindtstep,dogravity,dogeom
  logical :: dosetdisc,doeos,docooling,dodust,donimhd,docorotate,doany,dogrowth
  logical :: dogr,doradiation,dopart,dopoly,dompi,dohier,dodamp,dowind,doiorig
+ logical :: doexternb
 #ifdef FINVSQRT
  logical :: usefsqrt,usefinvsqrt
 #endif
@@ -134,6 +136,7 @@ subroutine testsuite(string,first,last,ntests,npass,nfail)
  dodamp     = .false.
  dowind     = .false.
  doiorig    = .false.
+ doexternb  = .false.
 
  if (index(string,'deriv')     /= 0) doderivs  = .true.
  if (index(string,'grav')      /= 0) dogravity = .true.
@@ -156,10 +159,11 @@ subroutine testsuite(string,first,last,ntests,npass,nfail)
  if (index(string,'damp')      /= 0) dodamp    = .true.
  if (index(string,'wind')      /= 0) dowind    = .true.
  if (index(string,'iorig')     /= 0) doiorig   = .true.
+ if (index(string,'externB')   /= 0) doexternb = .true.
 
  doany = any((/doderivs,dogravity,dodust,dogrowth,donimhd,dorwdump,&
                doptmass,docooling,dogeom,dogr,dosmol,doradiation,&
-               dopart,dopoly,dohier,dodamp,dowind,doiorig/))
+               dopart,dopoly,dohier,dodamp,dowind,doiorig,doexternb/))
 
  select case(trim(string))
  case('kernel','kern')
@@ -357,6 +361,13 @@ subroutine testsuite(string,first,last,ntests,npass,nfail)
  if (docorotate.or.testall) then
     call test_corotate(ntests,npass)
     call set_default_options_testsuite(iverbose) ! restore defaults
+ endif
+!
+!--test of external magnetic field module
+!
+ if (doexternb.or.testall) then
+   call test_externB(ntests,npass)
+   call set_default_options_testsuite(iverbose) ! restore defaults
  endif
 #endif
 !

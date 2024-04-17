@@ -165,6 +165,17 @@ ifeq ($(SETUP), disc)
     IND_TIMESTEPS=yes
 endif
 
+ifeq ($(SETUP), magdisc)
+#   magnetised disc
+    DISC_VISCOSITY=yes
+    SETUPFILE= setup_disc.f90
+    ANALYSIS= analysis_disc_mag.f90
+    ISOTHERMAL=yes
+    KNOWN_SETUP=yes
+    IND_TIMESTEPS=yes
+    MHD=yes
+endif
+
 ifeq ($(SETUP), grtde)
 #   tidal disruption event in general relativity
     SETUPFILE= setup_grtde.f90

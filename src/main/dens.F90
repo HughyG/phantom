@@ -592,7 +592,7 @@ end subroutine densityiterate
 pure subroutine get_density_sums(i,xpartveci,hi,hi1,hi21,iamtypei,iamgasi,iamdusti,&
                                  listneigh,nneigh,nneighi,dxcache,xyzcache,rhosum,&
                                  ifilledcellcache,ifilledneighcache,getdv,getdB,&
-                                 realviscosity,xyzh,vxyzu,Bevol,fxyzu,fext,ignoreself,rad)
+                                 realviscosity,xyzh,vxyzu,Bxyz,Bevol,fxyzu,fext,ignoreself,rad)
 #ifdef PERIODIC
  use boundary, only:dxbound,dybound,dzbound
 #endif
@@ -615,7 +615,7 @@ pure subroutine get_density_sums(i,xpartveci,hi,hi1,hi21,iamtypei,iamgasi,iamdus
  logical,      intent(in)    :: getdv,realviscosity
  logical,      intent(in)    :: getdB
  real,         intent(in)    :: xyzh(:,:),vxyzu(:,:),fxyzu(:,:),fext(:,:)
- real,         intent(in)    :: Bevol(:,:)
+ real,         intent(in)    :: Bxyz(:,:),Bevol(:,:)
  logical,      intent(in)    :: ignoreself
  real,         intent(in)    :: rad(:,:)
  integer(kind=1)             :: iphasej
@@ -1246,7 +1246,7 @@ pure subroutine compute_cell(cell,listneigh,nneigh,getdv,getdB,Bevol,xyzh,vxyzu,
     call get_density_sums(lli,cell%xpartvec(:,i),hi,hi1,hi21,iamtypei,iamgasi,iamdusti,&
                           listneigh,nneigh,nneighi,dxcache,xyzcache,cell%rhosums(:,i),&
                           .true.,.false.,getdv,getdB,realviscosity,&
-                          xyzh,vxyzu,Bevol,fxyzu,fext,ignoreself,rad)
+                          xyzh,vxyzu,Bxyz,Bevol,fxyzu,fext,ignoreself,rad)
 
     cell%nneightry = nneigh
     cell%nneigh(i) = nneighi

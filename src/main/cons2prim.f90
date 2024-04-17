@@ -184,7 +184,9 @@ subroutine cons2prim_everything(npart,xyzh,vxyzu,dvdx,rad,eos_vars,radprop,&
  use nicil,             only:nicil_update_nimhd,nicil_translate_error,n_warn
  use io,                only:fatal,real4,warning
  use cullendehnen,      only:get_alphaloc,xi_limiter
- use options,           only:alpha,alphamax,use_dustfrac,iopacity_type,use_var_comp,implicit_radiation
+ use options,           only:alpha,alphamax,use_dustfrac,iopacity_type,use_var_comp,implicit_radiation,iexternalforce
+ use externalforces,    only:iext_externB
+ use extern_Bfield,     only:Bexternal
  integer,      intent(in)    :: npart
  real,         intent(in)    :: xyzh(:,:),rad(:,:),Bevol(:,:),dustevol(:,:)
  real(kind=4), intent(in)    :: dvdx(:,:)
@@ -214,7 +216,7 @@ subroutine cons2prim_everything(npart,xyzh,vxyzu,dvdx,rad,eos_vars,radprop,&
 
 !$omp parallel do default (none) &
 !$omp shared(xyzh,vxyzu,npart,rad,eos_vars,radprop,Bevol,Bxyz) &
-!$omp shared(ieos,nucleation,nden_nimhd,eta_nimhd) &
+!$omp shared(ieos,nucleation,nden_nimhd,eta_nimhd,iexternalforce) &
 !$omp shared(alpha,alphamax,iphase,maxphase,maxp,massoftype) &
 !$omp shared(use_dustfrac,dustfrac,dustevol,this_is_a_test,ndustsmall,alphaind,dvdx) &
 !$omp shared(iopacity_type,use_var_comp,do_nucleation,update_muGamma,implicit_radiation) &
@@ -318,6 +320,11 @@ subroutine cons2prim_everything(npart,xyzh,vxyzu,dvdx,rad,eos_vars,radprop,&
           psii = Bevol(4,i)
 
           ! store primitive variables
+          if (iexternalforce==iext_externB) then
+             Bxi = Bxi + Bexternal(xi,yi,zi,1)
+             Byi = Byi + Bexternal(xi,yi,zi,2)
+             Bzi = Bzi + Bexternal(xi,yi,zi,3)
+          endif
           Bxyz(1,i) = Bxi
           Bxyz(2,i) = Byi
           Bxyz(3,i) = Bzi
