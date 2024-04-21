@@ -34,13 +34,14 @@ module setup
  logical :: rotated
  real    :: wavelength, ampl
 
- integer, parameter :: maxwaves = 5
+ integer, parameter :: maxwaves = 6
  character(len=*), parameter :: wavetype(0:maxwaves-1) = &
       (/'non-linear circularly polarised Alfven wave', &
         'linear fast wave                           ', &
         'linear Alfven wave                         ', &
         'linear slow wave                           ', &
-        'linear entropy wave                        '/)
+        'linear entropy wave                        ', &
+        'circularly polarised Alfven wave with Bext '/)
 
  public :: set_perturbation,cons_to_prim,untransform_vec ! to avoid compiler warnings
 
@@ -55,20 +56,22 @@ contains
 !----------------------------------------------------------------
 subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
                    polyk,gamma,hfact,time,fileprefix)
- use dim,          only:maxvxyzu
- use setup_params, only:rhozero,ihavesetupB
- use unifdis,      only:set_unifdis,rho_func
- use boundary,     only:set_boundary,xmin,ymin,zmin,xmax,ymax,zmax,&
-                        dxbound,dybound,dzbound
- use part,         only:Bxyz,mhd,periodic,igas
- use io,           only:master
- use prompting,    only:prompt
- use mpiutils,     only:bcast_mpi
- use physcon,      only:pi
- use geometry,     only:igeom_rotated,igeom_cartesian,&
-                        set_rotation_angles,coord_transform
- use timestep,     only:tmax,dtmax
- use mpidomain,    only:i_belong
+ use dim,            only:maxvxyzu
+ use setup_params,   only:rhozero,ihavesetupB
+ use unifdis,        only:set_unifdis,rho_func
+ use boundary,       only:set_boundary,xmin,ymin,zmin,xmax,ymax,zmax,&
+                          dxbound,dybound,dzbound
+ use options,        only:iexternalforce
+ use externalforces, only:iext_externB
+ use part,           only:Bxyz,mhd,periodic,igas
+ use io,             only:master
+ use prompting,      only:prompt
+ use mpiutils,       only:bcast_mpi
+ use physcon,        only:pi
+ use geometry,       only:igeom_rotated,igeom_cartesian,&
+                          set_rotation_angles,coord_transform
+ use timestep,       only:tmax,dtmax
+ use mpidomain,      only:i_belong
  integer,           intent(in)    :: id
  integer,           intent(out)   :: npart
  integer,           intent(out)   :: npartoftype(:)
@@ -149,6 +152,14 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
     if (iselect==4) vzero(1) = 1.
     call get_eigenvector(iselect,rvec)
     call get_amplitudes(iselect,Bzero,sqrt(gamma*przero/rhozero),rhozero,uuzero,przero,ampl,drho,dv,dB,du,vwave)
+ case(5)
+    ampl   = 0.1
+    przero = 0.1
+    Bzero  = (/0.,0.,0./)
+    vzero  = 0.
+    uuzero = przero/(gam1*rhozero)
+    vwave  = sqrt(dot_product(Bzero,Bzero)/rhozero) ! Alfven speed
+    iexternalforce = iext_externB
  case default
     ampl   = 0.1
     przero = 0.1
