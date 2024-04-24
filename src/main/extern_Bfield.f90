@@ -108,16 +108,16 @@ subroutine externBfield(xi,yi,zi,hi,vxi,vyi,vzi,rhoi, &
 !  
  magMomx = 0.
  magMomy = 0.
- magMomz = 4.*pi*Bstar_cgs/(unit_Bfield*10**5)
+ magMomz = 4.*pi*Bstar_cgs/(unit_Bfield)
  mdotr = xi*magMomx+yi*magMomy+zi*magMomz
  if (rad < tiny(0.)) then
    Bextx = 0.
    Bexty = 0.
    Bextz = 0.
  else
-   Bextx = 0*scaleFactor*(((3.*mdotr*xi)/(rad**5))-(magMomx/(rad**3)))
-   Bexty = 0*scaleFactor*(((3.*mdotr*yi)/(rad**5))-(magMomy/(rad**3)))
-   Bextz = 0*scaleFactor*(((3.*mdotr*zi)/(rad**5))-(magMomz/(rad**3)))
+   Bextx = scaleFactor*(((3.*mdotr*xi)/(rad**5))-(magMomx/(rad**3)))
+   Bexty = scaleFactor*(((3.*mdotr*yi)/(rad**5))-(magMomy/(rad**3)))
+   Bextz = scaleFactor*(((3.*mdotr*zi)/(rad**5))-(magMomz/(rad**3)))
  endif
 !============================================================!
  
