@@ -28,7 +28,7 @@ module extern_Bfield
 
  ! default values for runtime options
  
- real,    private :: Bstar_cgs     = 1000.
+ real,    private :: Bstar_cgs     = 0.0001
 
 contains
 
@@ -44,7 +44,7 @@ contains
 !+
 !--------------------------------------------------------
 
-subroutine externBfield(xi,yi,zi,hi,vxi,vyi,vzi,rhoi, &
+subroutine externBfield(xi,yi,zi,vxi,vyi,vzi,rhoi, &
                         Bintx, Binty, Bintz, &
                         currJintx, currJinty, currJintz, &
                         Bextx, Bexty, Bextz, &
@@ -55,7 +55,7 @@ subroutine externBfield(xi,yi,zi,hi,vxi,vyi,vzi,rhoi, &
  use io,  only:warning,error
  use physcon, only:pi
  use units, only:unit_Bfield
- real, intent(in) :: xi,yi,zi,hi,vxi,vyi,vzi,rhoi
+ real, intent(in) :: xi,yi,zi,vxi,vyi,vzi,rhoi
  real, intent(in) :: Bintx,Binty,Bintz
  real, intent(in) :: currJintx,currJinty,currJintz
  character(len=*), intent(in) :: string
@@ -277,12 +277,12 @@ subroutine get_fext(magMomx,magMomy,magMomz,xi,yi,zi,currJintx, &
 !
 !  calculate F = (Curl of B x B)/rho
 ! !
-!  fextx = (currJextBextx+currJextBintx+currJintBextx+currJintBintx)*(drhoi)
-!  fexty = (currJextBexty+currJextBinty+currJintBexty+currJintBinty)*(drhoi)
-!  fextz = (currJextBextz+currJextBintz+currJintBextz+currJintBintz)*(drhoi)
- fextx = 0*(currJextBextx)*(drhoi)
- fexty = 0*(currJextBexty)*(drhoi)
- fextz = 0*(currJextBextz)*(drhoi)
+ fextx = dBextxdx
+ fexty = dBextydy
+ fextz = dBextzdz
+!  fextx = 0*(currJextBextx)*(drhoi)
+!  fexty = 0*(currJextBexty)*(drhoi)
+!  fextz = 0*(currJextBextz)*(drhoi)
  return
 end subroutine get_fext
 
@@ -297,10 +297,10 @@ real function Bexternal(xcoord,ycoord,zcoord,icomponent)
  integer, intent(in) :: icomponent
  real,    intent(in) :: xcoord,ycoord,zcoord
  real :: dumx,dumy,dumz,Bextx,Bexty,Bextz
- real :: dumh,dumrhoi,dumgx,dumgy,dumgz
+ real :: dumrhoi,dumgx,dumgy,dumgz
 
  dumrhoi = 1.
- call externBfield(xcoord,ycoord,zcoord,dumh,0.,0.,0.,dumrhoi, &
+ call externBfield(xcoord,ycoord,zcoord,0.,0.,0.,dumrhoi, &
                    0.,0.,0.,0.,0.,0., &
                    Bextx,Bexty,Bextz, &
                    dumx,dumy,dumz,dumgx,dumgy,dumgz,'Bfield')
@@ -327,12 +327,12 @@ end function Bexternal
 !   hydro relaxation runs in the external tokamak potential)
 !+
 !------------------------------------------------------------
-subroutine get_externalB_force(xi,yi,zi,hi,rhoi,fextx,fexty,fextz)
- real, intent(in)  :: xi,yi,zi,hi,rhoi
+subroutine get_externalB_force(xi,yi,zi,rhoi,fextx,fexty,fextz)
+ real, intent(in)  :: xi,yi,zi,rhoi
  real, intent(out) :: fextx,fexty,fextz
  real :: dumx,dumy,dumz,dumgx,dumgy,dumgz
 
- call externBfield(xi,yi,zi,hi,0.,0.,0.,rhoi, &
+ call externBfield(xi,yi,zi,0.,0.,0.,rhoi, &
                    0.,0.,0.,0.,0.,0.,dumx,dumy,dumz, &
                    fextx,fexty,fextz,dumgx,dumgy,dumgz,'fext')
 

@@ -926,6 +926,7 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
  use metric_tools,only:imet_minkowski,imetric
  use utils_gr,    only:get_bigv
  use radiation_utils, only:get_rad_R
+ use extern_Bfield,   only:get_externalB_force
  integer,         intent(in)    :: i
  logical,         intent(in)    :: iamgasi,iamdusti
  real,            intent(in)    :: xpartveci(:)
@@ -973,7 +974,7 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
  real    :: grkernj,grgrkernj,autermj,avBtermj,vsigj,spsoundj,tempj
  real    :: gradpj,pro2j,projsxj,projsyj,projszj,sxxj,sxyj,sxzj,syyj,syzj,szzj,dBrhoterm
  real    :: visctermisoj,visctermanisoj,enj,hj,mrhoj5,alphaj,pmassj,rho1j
- real    :: rhoj,prj,rhoav1
+ real    :: rhoj,prj,rhoav1,dBextxdx,dBextydy,dBextzdz,dBextevolterm
  real    :: hj1,hj21,q2j,qj,vwavej,divvj
  real    :: dvdxi(9),dvdxj(9)
 #ifdef GRAVITY
@@ -1633,11 +1634,18 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
                 dBnonideal = dBnonideal + dBnonidealj*pmjrho21grkernj
              endif
              !
+             ! Bext term for dBevol/dt equation
+             !
+             if (mhd) then
+                call get_externalB_force(xi,yi,zi,rhoi,dBextxdx,dBextydy,dBextzdz)     ! change to get Bext from cons2prim to reduce computational cost
+                dBextevolterm = dvx*dBextxdx + dvy*dBextydy + dvz*dBextzdz
+             endif
+             !
              ! dB/dt evolution equation
              !
-             dBevolx = dBrhoterm*dvx + dBdissterm*dBx - dpsiterm*runix - dBnonideal(1)
-             dBevoly = dBrhoterm*dvy + dBdissterm*dBy - dpsiterm*runiy - dBnonideal(2)
-             dBevolz = dBrhoterm*dvz + dBdissterm*dBz - dpsiterm*runiz - dBnonideal(3)
+             dBevolx = dBrhoterm*dvx + dBdissterm*dBx - dpsiterm*runix - dBnonideal(1) !- dBextevolterm/rhoi
+             dBevoly = dBrhoterm*dvy + dBdissterm*dBy - dpsiterm*runiy - dBnonideal(2) !- dBextevolterm/rhoi
+             dBevolz = dBrhoterm*dvz + dBdissterm*dBz - dpsiterm*runiz - dBnonideal(3) !- dBextevolterm/rhoi
           endif
           !
           !--get projection of anisotropic part of stress tensor

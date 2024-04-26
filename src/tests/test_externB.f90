@@ -51,7 +51,7 @@ end subroutine test_externB
      use physcon,       only:au,solarm
      use vectorutils,   only:cross_product3D
      integer, intent(inout) :: ntests,npass
-     real :: rhoi,xi,yi,zi,eps,hi
+     real :: rhoi,xi,yi,zi,eps
      real :: fextx,fexty,fextz
      real :: B(3),curlB(3),JcrossB(3)
      real :: dBxdx,dBxdy,dBxdz
@@ -89,7 +89,7 @@ end subroutine test_externB
 
      call cross_product3D(curlB,B,JcrossB)
 
-     call get_externalB_force(xi,yi,zi,hi,rhoi,fextx,fexty,fextz)
+     call get_externalB_force(xi,yi,zi,rhoi,fextx,fexty,fextz)
      print *, JcrossB(1), fextx
      print *, JcrossB(2), fexty
      print *, JcrossB(3), fextz

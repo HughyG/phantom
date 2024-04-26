@@ -211,7 +211,7 @@ subroutine externalforce(iexternalforce,xi,yi,zi,hi,ti,fextxi,fextyi,fextzi,phi,
 !--External force due to an assumed external B field (with non-zero curl)
 !
     rhoi = rhoh(hi,massoftype(igas))
-    call get_externalB_force(xi,yi,zi,hi,rhoi,fextxi,fextyi,fextzi)
+    call get_externalB_force(xi,yi,zi,rhoi,fextxi,fextyi,fextzi)
     phi = 0.
 
  case(iext_spiral)
