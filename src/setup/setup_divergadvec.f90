@@ -35,8 +35,6 @@ module setup
         'hyperbolic cleaning                        ', &
         'hyperbolic/parabolic cleaning              '/)
 
- public :: set_perturbation,cons_to_prim! to avoid compiler warnings
-
  private
 
 contains
@@ -48,21 +46,17 @@ contains
 !----------------------------------------------------------------
 subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
                    polyk,gamma,hfact,time,fileprefix)
- use dim,            only:maxvxyzu
+ use dim,            only:maxvxyzu,periodic
  use setup_params,   only:rhozero,ihavesetupB
- use unifdis,        only:set_unifdis,rho_func
- use boundary,       only:set_boundary,xmin,ymin,zmin,xmax,ymax,zmax,&
-                          dxbound,dybound,dzbound
+ use boundary,       only:dxbound,dybound,dzbound
  use options,        only:iexternalforce
  use externalforces, only:iext_externB
  use part,           only:Bxyz,mhd,periodic,igas
- use io,             only:master
- use slab,         only:set_slab
+ use io,             only:master,fatal
+ use slab,           only:set_slab
  use prompting,      only:prompt
  use mpiutils,       only:bcast_mpi
  use physcon,        only:pi
- use geometry,       only:igeom_rotated,igeom_cartesian,&
-                          set_rotation_angles,coord_transform
  use timestep,       only:tmax,dtmax
  use mpidomain,      only:i_belong
  integer,           intent(in)    :: id
@@ -76,12 +70,13 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
  real,              intent(inout) :: time
  character(len=*),  intent(in)    :: fileprefix
  real :: deltax,totmass
- integer :: i,ierr,igeom
- real :: przero,uuzero,Bvec(3),vvec(3),Bzero(3),vzero(3)
- real :: uui,Bxi,r0
+ integer :: i,ierr
+ real :: przero,uuzero,Bvec(3),Bzero(3),vzero(3)
+ real :: uui,Bxi,r0,rad
  real :: gam1,scaleFactor
- real :: drho,dv(3),dB(3),du
  character(len=len(fileprefix)+6) :: setupfile
+
+ if (.not.periodic) call fatal('setup_divBadvect','need to compile with PERIODIC=yes')
 !
 !--general parameters
 !
@@ -97,33 +92,26 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
  ! if file does not exist, then ask for user input
  !
  setupfile = trim(fileprefix)//'.setup'
- call read_setupfile(setupfile,gamma,ierr)
+ call read_setupfile(setupfile,ierr)
  if (ierr /= 0) then
     if (id==master) then
        call interactive_setup()
-       call write_setupfile(setupfile,gamma)
+       call write_setupfile(setupfile)
        print*,' Edit '//trim(setupfile)//' and rerun phantomsetup'
     endif
     stop
  endif
- gamma = 5./3.
 !
 !--setup parameters
 !
- igeom = igeom_cartesian
  r0 = 0.25
  rhozero  = 1.
- du = 0.
- drho = 0.
- dv = 0.
- dB = 0.
+ Bzero = 0.
  gam1 = gamma - 1.
  scaleFactor = 1./sqrt(4*pi)
  przero = 6
  vzero  = (/1,1,0/)
  uuzero = przero/(gam1*rhozero)
-
- call print_amplitudes(rhozero,drho,vzero,dv,Bzero,dB,uuzero,du)
 
  if (maxvxyzu < 4) then
     polyk = przero/rhozero**gamma
@@ -135,12 +123,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
 !
 !--boundaries
 !
-!  call set_slab(id,master,nx,-0.75,1.5,-0.75,1.5,deltax,hfact,npart,xyzh)
-
- call set_boundary(-0.75,1.5,-0.75,1.5,-0.75,0.75)
- deltax = dxbound/nx
- call set_unifdis('closepacked',id,master,xmin,xmax,ymin,ymax,zmin,zmax,&
-                     deltax,hfact,npart,xyzh,.false.,mask=i_belong)
+ call set_slab(id,master,nx,-0.75,1.5,-0.75,1.5,deltax,hfact,npart,xyzh)
 
  npartoftype(:) = 0
  npartoftype(igas) = npart
@@ -149,16 +132,20 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
  massoftype = totmass/npart
  print*,'npart = ',npart,' particle mass = ',massoftype(igas)
 
-
  do i=1,npart
-    call set_perturbation(xyzh(1,i),xyzh(2,i),r0,scaleFactor,Bxi)
-    
+    !call set_perturbation(xyzh(1,i),xyzh(2,i),r0,scaleFactor,Bxi)
+    rad = sqrt(xyzh(1,i)**2+xyzh(2,i)**2)
+
+    if (rad<r0) then
+       Bxi = scaleFactor*((rad/r0)**8 - 2*(rad/r0)**4 + 1)
+    else
+       Bxi = 0.
+    endif
     vxyzu(1,i) = 1
     vxyzu(2,i) = 1
     vxyzu(3,i) = 0
     bvec = Bzero + (/Bxi,0.,scaleFactor/)
     uui  = uuzero
-  
 
     if (maxvxyzu >= 4) vxyzu(4,i) = uui
     if (mhd) Bxyz(1:3,i) = Bvec
@@ -169,61 +156,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
  tmax = 1.
  dtmax = 0.1*tmax
 
-contains
-
 end subroutine setpart
-
-!-------------------------------------------------
-!+
-!  simple stretchmapping routine to implement
-!  sinusoidal density perturbation
-!+
-!-------------------------------------------------
-subroutine set_perturbation(xi,yi,r0,scaleFactor,Bx)
- real, intent(in)  :: xi,yi,scaleFactor,r0
- real, intent(out) :: Bx
- real    :: rad
-
- rad = sqrt(xi**2+yi**2)
-
- if (rad<r0) then
-   Bx = scaleFactor*((rad/r0)**8 - 2*(rad/r0)**4 + 1)
- else
-   Bx = 0.
- endif
-
-end subroutine set_perturbation
-
-
-!-----------------------------------------------------
-!+
-!  nice printout of amplitudes for various quantities
-!+
-!-----------------------------------------------------
-subroutine print_amplitudes(rho,drho,v,dv,B,dB,u,du)
- real, intent(in) :: rho,drho,v(3),dv(3),B(3),dB(3),u,du
-
- write(*,"('    |',8(a10,1x,'|'))") 'rho','v1','v2','v3','B1','B2','B3','u'
- write(*,"(' q0 |',8(1pg10.2,1x,'|'))") rho,v,B,u
- write(*,"(' dq |',8(1pg10.2,1x,'|'))") drho,dv,dB,du
-
-end subroutine print_amplitudes
-
-!------------------------------------------------
-!+
-!  conservative to primitive variable transform
-!+
-!------------------------------------------------
-pure subroutine cons_to_prim(q,rho,v,B,u)
- real, intent(in)  :: q(8)
- real, intent(out) :: rho,v(3),B(3),u
-
- rho = q(1)
- v   = q(2:4)/rho
- B   = q(5:7)
- u   = q(8)/rho - 0.5*dot_product(v,v)
-
-end subroutine cons_to_prim
 
 !------------------------------------------
 !+
@@ -247,29 +180,25 @@ end subroutine interactive_setup
 !  Write setup parameters to input file
 !+
 !------------------------------------------
-subroutine write_setupfile(filename,gamma)
+subroutine write_setupfile(filename)
  use infile_utils, only:write_inopt
  use dim,          only:tagline,maxvxyzu
  character(len=*), intent(in) :: filename
- real,             intent(in) :: gamma
  integer,          parameter  :: lu = 20
  integer                      :: ierr1
 
  write(*,"(a)") ' Writing '//trim(filename)//' with setup info'
  open(unit=lu,file=filename,status='replace',form='formatted')
  write(lu,"(a)") '# '//trim(tagline)
- write(lu,"(a)") '# input file for Phantom MHD linear wave test setup'
+ write(lu,"(a)") '# input file for Phantom div B advection test'
 
- write(lu,"(/,a)") '# MHD wave tests'
- call write_inopt(iselect,'iselect',' which wave test to run',lu,ierr1)
+ write(lu,"(/,a)") '# div B advection tests'
+ call write_inopt(iselect,'iselect',' which test to run',lu,ierr1)
  if (ierr1 /= 0) write(*,*) 'ERROR writing iselect'
 
  write(lu,"(/,a)") '# resolution'
  call write_inopt(nx,'nx','resolution (number of particles in x) for -xleft < x < xshock',lu,ierr1)
  if (ierr1 /= 0) write(*,*) 'ERROR writing nx'
-
- write(lu,"(/,a)") '# Equation-of-state properties'
- call write_inopt(gamma,'gamma','adiabatic index',lu,ierr1)
 
  close(unit=lu)
 
@@ -280,12 +209,11 @@ end subroutine write_setupfile
 !  Read setup parameters from input file
 !+
 !------------------------------------------
-subroutine read_setupfile(filename,gamma,ierr)
+subroutine read_setupfile(filename,ierr)
  use infile_utils, only:open_db_from_file,inopts,close_db,read_inopt
  character(len=*), intent(in)  :: filename
  integer,          parameter   :: lu = 21
  integer,          intent(out) :: ierr
- real,             intent(out) :: gamma
  integer                       :: nerr
  type(inopts), allocatable     :: db(:)
 
@@ -296,10 +224,9 @@ subroutine read_setupfile(filename,gamma,ierr)
  nerr = 0
  call read_inopt(nx,'nx',db,min=8,errcount=nerr)
  call read_inopt(iselect,'iselect',db,min=0,errcount=nerr)
- call read_inopt(gamma,'gamma',db,min=1.,errcount=nerr)
 
  if (nerr > 0) then
-    print "(1x,a,i2,a)",'setup_wave: ',nerr,' error(s) during read of setup file'
+    print "(1x,a,i2,a)",'setup_divBadvect: ',nerr,' error(s) during read of setup file'
     ierr = 1
  endif
 
