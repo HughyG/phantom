@@ -655,6 +655,14 @@ ifeq ($(SETUP), alfven)
     KERNEL=quintic
 endif
 
+ifeq ($(SETUP), divergadvec)
+#   Divergence advection testing for divB cleaning
+    SETUPFILE= setup_divergadvec.f90
+    MHD=yes
+    KNOWN_SETUP=yes
+    KERNEL=quintic
+endif
+
 ifeq ($(SETUP), orstang)
 #   Orszag-Tang vortex
     PERIODIC=yes
