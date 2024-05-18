@@ -343,7 +343,7 @@ subroutine test_derivs(ntests,npass,string)
        ! ONLY call density, since we do not want accelerations being reset
        call set_linklist(npart,nactive,xyzh,vxyzu)
        call densityiterate(1,npart,nactive,xyzh,vxyzu,divcurlv,divcurlB,&
-                           Bevol,stressmax,fxyzu,fext,alphaind,gradh,&
+                           Bxyz,Bevol,stressmax,fxyzu,fext,alphaind,gradh,&
                            rad,radprop,dvdx)
        if (id==master) call printused(tused)
 

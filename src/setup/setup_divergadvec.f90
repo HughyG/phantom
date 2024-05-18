@@ -16,6 +16,7 @@ module setup
 ! :Runtime parameters:
 !   - gamma   : *adiabatic index*
 !   - iselect : * which wave test to run*
+!   - iBfield : * which external field to use*
 !   - nx      : *resolution (number of particles in x) for -xleft < x < xshock*
 !   - r0      : *radius of the perturbation*
 !
@@ -28,12 +29,18 @@ module setup
 !
  integer :: iselect
  integer :: nx
+ integer :: iBfield
 
  integer, parameter :: maxwaves = 3
  character(len=*), parameter :: wavetype(0:maxwaves-1) = &
       (/'no cleaning                                ', &
         'hyperbolic cleaning                        ', &
         'hyperbolic/parabolic cleaning              '/)
+ 
+ integer, parameter :: maxBtype = 2
+ character(len=*), parameter :: Btype(0:maxBtype-1) = &
+      (/'Internal B fiel                           ', &
+         'External B field                          '/)
 
  private
 
@@ -50,6 +57,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
  use setup_params,   only:rhozero,ihavesetupB
  use boundary,       only:dxbound,dybound,dzbound
  use options,        only:iexternalforce
+ use cons2prim,      only:cons2prim_everything
  use externalforces, only:iext_externB
  use part,           only:Bxyz,mhd,periodic,igas
  use io,             only:master,fatal
@@ -74,6 +82,9 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
  real :: przero,uuzero,Bvec(3),Bzero(3),vzero(3)
  real :: uui,Bxi,r0,rad
  real :: gam1,scaleFactor
+ real(kind=4) :: dumdvdx(4,1),dumalphaind(4,1)
+ real :: dumrad(4,1),dumeos(4,1),dumrprop(4,1),dumbevol(4,1)
+ real :: dumdustevol(4,1),dumdustfrac(4,1)
  character(len=len(fileprefix)+6) :: setupfile
 
  if (.not.periodic) call fatal('setup_divBadvect','need to compile with PERIODIC=yes')
@@ -86,6 +97,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
 !--default settings
 !
  iselect = 0
+ iBfield = 0
  r0 = 0.25
  !
  ! read setup parameters from the .setup file.
@@ -123,7 +135,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
 !
 !--boundaries
 !
- call set_slab(id,master,nx,-0.75,1.5,-0.75,1.5,deltax,hfact,npart,xyzh)
+ call set_slab(id,master,nx,-2.,3.,-2.,3.,deltax,hfact,npart,xyzh)
 
  npartoftype(:) = 0
  npartoftype(igas) = npart
@@ -132,10 +144,15 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
  massoftype = totmass/npart
  print*,'npart = ',npart,' particle mass = ',massoftype(igas)
 
- do i=1,npart
-    !call set_perturbation(xyzh(1,i),xyzh(2,i),r0,scaleFactor,Bxi)
-    rad = sqrt(xyzh(1,i)**2+xyzh(2,i)**2)
+ if (iBfield == 1) then
+   iexternalforce = iext_externB
+ call cons2prim_everything(npart,xyzh,vxyzu,dumdvdx,dumrad,dumeos, &
+         dumrprop,Bxyz(1:3,:),dumbevol,dumdustevol,dumdustfrac,dumalphaind)
+   iexternalforce = 0
+ endif
 
+ do i=1,npart
+    rad = sqrt(xyzh(1,i)**2+xyzh(2,i)**2)
     if (rad<r0) then
        Bxi = scaleFactor*((rad/r0)**8 - 2*(rad/r0)**4 + 1)
     else
@@ -144,11 +161,13 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
     vxyzu(1,i) = 1
     vxyzu(2,i) = 1
     vxyzu(3,i) = 0
-    bvec = Bzero + (/Bxi,0.,scaleFactor/)
+    if (iBfield == 0) then
+       Bvec = Bzero + (/Bxi,0.,scaleFactor/)
+       Bxyz(1:3,i) = Bvec
+    endif
     uui  = uuzero
 
     if (maxvxyzu >= 4) vxyzu(4,i) = uui
-    if (mhd) Bxyz(1:3,i) = Bvec
  enddo
 
  if (mhd) ihavesetupB = .true.
@@ -169,6 +188,9 @@ subroutine interactive_setup()
 
  print "(5(/,i2,' : ',a))",(i,trim(wavetype(i)),i=0,maxwaves-1)
  call prompt('Select which problem to run ',iselect,0,maxwaves-1)
+
+ print "(5(/,i2,' : ',a))",(i,trim(Btype(i)),i=0,maxBtype-1)
+ call prompt('Select which problem to run ',iBfield,0,maxBtype-1)
 
  nx = 50
  call prompt('Enter resolution (number of particles in x)',nx,8)
@@ -195,6 +217,10 @@ subroutine write_setupfile(filename)
  write(lu,"(/,a)") '# div B advection tests'
  call write_inopt(iselect,'iselect',' which test to run',lu,ierr1)
  if (ierr1 /= 0) write(*,*) 'ERROR writing iselect'
+
+ write(lu,"(/,a)") '# B field type'
+ call write_inopt(iBfield,'iBfield',' which external field to use',lu,ierr1)
+ if (ierr1 /= 0) write(*,*) 'ERROR writing iBfield'
 
  write(lu,"(/,a)") '# resolution'
  call write_inopt(nx,'nx','resolution (number of particles in x) for -xleft < x < xshock',lu,ierr1)
@@ -224,6 +250,7 @@ subroutine read_setupfile(filename,ierr)
  nerr = 0
  call read_inopt(nx,'nx',db,min=8,errcount=nerr)
  call read_inopt(iselect,'iselect',db,min=0,errcount=nerr)
+ call read_inopt(iBfield,'iBfield',db,min=0,errcount=nerr)
 
  if (nerr > 0) then
     print "(1x,a,i2,a)",'setup_divBadvect: ',nerr,' error(s) during read of setup file'

@@ -26,7 +26,7 @@ module testexternB
 contains
     !--------------------------------------------
     !+
-    !  Unit tests of the polynomial solvers
+    !  Unit tests of the Bexternal Module
     !+
     !--------------------------------------------
 subroutine test_externB(ntests,npass)

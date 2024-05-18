@@ -114,7 +114,7 @@ subroutine externalforce(iexternalforce,xi,yi,zi,hi,ti,fextxi,fextyi,fextzi,phi,
  use extern_geopot,      only:get_geopot_force,J2,spinvec
  use units,              only:get_G_code
  use io,                 only:fatal
- use part,               only:rhoh,massoftype,igas
+ use part,               only:rhoh,igas
  integer, intent(in)  :: iexternalforce
  real,    intent(in)  :: xi,yi,zi,hi,ti
  real,    intent(out) :: fextxi,fextyi,fextzi,phi
@@ -122,7 +122,7 @@ subroutine externalforce(iexternalforce,xi,yi,zi,hi,ti,fextxi,fextyi,fextzi,phi,
  integer, intent(in),  optional :: ii ! NOTE: index-base physics can be dangerous; treat with caution!
  real            :: r2,dr,dr3,r,d2,f2i
  real            :: rcyl2,rcyl,rsph,rsph3,v2onr,dtf1,dtf2
- real            :: phii,gcode,R_g,factor,rhoi
+ real            :: phii,gcode,R_g,factor
  real, parameter :: Rtorus = 1.0
  real,dimension(3) :: pos
 !-----------------------------------------------------------------------
@@ -210,9 +210,9 @@ subroutine externalforce(iexternalforce,xi,yi,zi,hi,ti,fextxi,fextyi,fextzi,phi,
 !
 !--External force due to an assumed external B field (with non-zero curl)
 !
-    rhoi = rhoh(hi,massoftype(igas))
-    call get_externalB_force(xi,yi,zi,rhoi,fextxi,fextyi,fextzi)
-    phi = 0.
+   !  rhoi = rhoh(hi,massoftype(igas))
+   !  call get_externalB_force(xi,yi,zi,rhoi,fextxi,fextyi,fextzi)
+   !  phi = 0.
 
  case(iext_spiral)
 

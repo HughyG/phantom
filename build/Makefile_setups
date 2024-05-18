@@ -659,7 +659,9 @@ ifeq ($(SETUP), divergadvec)
 #   Divergence advection testing for divB cleaning
     SETUPFILE= setup_divergadvec.f90
     MHD=yes
+    PERIODIC=yes
     KNOWN_SETUP=yes
+    DIVERGENCEADVEC=yes
     KERNEL=quintic
 endif
 
