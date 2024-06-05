@@ -67,6 +67,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
  use physcon,        only:pi
  use timestep,       only:tmax,dtmax
  use mpidomain,      only:i_belong
+ use extern_Bfield,  only:Bexternal,divergence_advection
  integer,           intent(in)    :: id
  integer,           intent(out)   :: npart
  integer,           intent(out)   :: npartoftype(:)
@@ -82,9 +83,6 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
  real :: przero,uuzero,Bvec(3),Bzero(3),vzero(3)
  real :: uui,Bxi,r0,rad
  real :: gam1,scaleFactor
- real(kind=4) :: dumdvdx(4,1),dumalphaind(4,1)
- real :: dumrad(4,1),dumeos(4,1),dumrprop(4,1),dumbevol(4,1)
- real :: dumdustevol(4,1),dumdustfrac(4,1)
  character(len=len(fileprefix)+6) :: setupfile
 
  if (.not.periodic) call fatal('setup_divBadvect','need to compile with PERIODIC=yes')
@@ -135,7 +133,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
 !
 !--boundaries
 !
- call set_slab(id,master,nx,-2.,3.,-2.,3.,deltax,hfact,npart,xyzh)
+ call set_slab(id,master,nx,-0.75,1.5,-0.75,1.5,deltax,hfact,npart,xyzh)
 
  npartoftype(:) = 0
  npartoftype(igas) = npart
@@ -144,27 +142,25 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
  massoftype = totmass/npart
  print*,'npart = ',npart,' particle mass = ',massoftype(igas)
 
- if (iBfield == 1) then
-   iexternalforce = iext_externB
- call cons2prim_everything(npart,xyzh,vxyzu,dumdvdx,dumrad,dumeos, &
-         dumrprop,Bxyz(1:3,:),dumbevol,dumdustevol,dumdustfrac,dumalphaind)
-   iexternalforce = 0
- endif
+ if (iBfield == 1) iexternalforce = iext_externB
 
  do i=1,npart
-    rad = sqrt(xyzh(1,i)**2+xyzh(2,i)**2)
-    if (rad<r0) then
-       Bxi = scaleFactor*((rad/r0)**8 - 2*(rad/r0)**4 + 1)
+    if (iBfield == 1) then
+       Bxyz(1:3,i) = Bzero
     else
-       Bxi = 0.
+      rad = sqrt(xyzh(1,i)**2+xyzh(2,i)**2)
+      if (rad<r0) then
+         Bxi = scaleFactor*((rad/r0)**8 - 2*(rad/r0)**4 + 1)
+      else
+         Bxi = 0.
+      endif
+      Bvec = Bzero !+ (/Bxi,0.,scaleFactor/)
+      Bxyz(1:3,i) = Bvec
     endif
+    
     vxyzu(1,i) = 1
     vxyzu(2,i) = 1
     vxyzu(3,i) = 0
-    if (iBfield == 0) then
-       Bvec = Bzero + (/Bxi,0.,scaleFactor/)
-       Bxyz(1:3,i) = Bvec
-    endif
     uui  = uuzero
 
     if (maxvxyzu >= 4) vxyzu(4,i) = uui
@@ -174,6 +170,8 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
 
  tmax = 1.
  dtmax = 0.1*tmax
+
+ divergence_advection = .true.
 
 end subroutine setpart
 

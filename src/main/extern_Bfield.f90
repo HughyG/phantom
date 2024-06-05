@@ -29,6 +29,9 @@ module extern_Bfield
  ! default values for runtime options
  
  real,    private :: Bstar_cgs     = 0.0001
+ logical, public :: alfvenbool    = .false.
+ logical, public :: divergence_advection = .false.
+ real,    private :: ampl = 0.1
 
 contains
 
@@ -49,10 +52,8 @@ subroutine externBfield(xi,yi,zi,vxi,vyi,vzi,rhoi,Bextx,Bexty,Bextz, &
                         dBextxdx,dBextxdy,dBextxdz,dBextydx,dBextydy, &
                         dBextydz,dBextzdx,dBextzdy,dBextzdz,string)
 
- use io,  only:warning,error
- use physcon, only:pi
- use units, only:unit_Bfield
- use dim, only:divergencebool
+ use physcon,  only:pi
+ use units,    only:unit_Bfield
  real, intent(in) :: xi,yi,zi,vxi,vyi,vzi,rhoi
  character(len=*), intent(in) :: string
  real, intent(out) :: Bextx,Bexty,Bextz,fextx,fexty,fextz
@@ -63,6 +64,7 @@ subroutine externBfield(xi,yi,zi,vxi,vyi,vzi,rhoi,Bextx,Bexty,Bextz, &
  real :: magMomx,magMomy,magMomz
  real :: rad,drdx,drdy,drdz,scaleFactor
  real :: mdotr,drhoi,r0,sqrtscaleFactor
+ real :: wavelength,wk
 
 !
 !--get 1/rho
@@ -71,7 +73,6 @@ subroutine externBfield(xi,yi,zi,vxi,vyi,vzi,rhoi,Bextx,Bexty,Bextz, &
     drhoi = 1./rhoi
  else
     drhoi = 0.
-    call warning('externB',' rho <= tiny in externalBfield !!!')
     return
  endif
  !
@@ -109,8 +110,8 @@ subroutine externBfield(xi,yi,zi,vxi,vyi,vzi,rhoi,Bextx,Bexty,Bextz, &
    Bextx = 0.
    Bexty = 0.
    Bextz = 0.
- else if (divergencebool) then
-   if (rad < r0) then
+ else if (divergence_advection) then
+   if (rad < r0) then 
       Bextx = sqrtscaleFactor*((rad/r0)**8 - 2*(rad/r0)**4 + 1)
       Bexty = 0.
       Bextz = sqrtscaleFactor
@@ -119,6 +120,12 @@ subroutine externBfield(xi,yi,zi,vxi,vyi,vzi,rhoi,Bextx,Bexty,Bextz, &
       Bexty = 0.
       Bextz = 0.
    endif
+ else if (alfvenbool) then
+   wavelength = 1.
+   wk = 2.*pi/wavelength 
+   Bextx = ampl*1.
+   Bexty = ampl*sin(wk*xi)
+   Bextz = 0.
  else
    Bextx = scaleFactor*(((3.*mdotr*xi)/(rad**5))-(magMomx/(rad**3)))
    Bexty = scaleFactor*(((3.*mdotr*yi)/(rad**5))-(magMomy/(rad**3)))
@@ -143,7 +150,7 @@ subroutine externBfield(xi,yi,zi,vxi,vyi,vzi,rhoi,Bextx,Bexty,Bextz, &
 !--get J_ext x B_ext as the external force
 !
       call get_fext(magMomx,magMomy,magMomz,xi,yi,zi,r0, &
-            Bextx,Bexty,Bextx,scaleFactor, &
+            Bextx,Bexty,Bextz,scaleFactor, &
             sqrtscaleFactor,fextx,fexty,fextz,drhoi,rad,mdotr)
 
    case('all')
@@ -153,7 +160,7 @@ subroutine externBfield(xi,yi,zi,vxi,vyi,vzi,rhoi,Bextx,Bexty,Bextz, &
 !  the term -v.grad Bext needed in the B evolution equation
 !
       call get_fext(magMomx,magMomy,magMomz,xi,yi,zi,r0, &
-            Bextx,Bexty,Bextx,scaleFactor, &
+            Bextx,Bexty,Bextz,scaleFactor, &
             sqrtscaleFactor,fextx,fexty,fextz,drhoi,rad,mdotr)
 
       vdotgradBx = vxi*dBextxdx + vyi*dBextxdy + vzi*dBextxdz
@@ -173,7 +180,6 @@ subroutine externBfield(xi,yi,zi,vxi,vyi,vzi,rhoi,Bextx,Bexty,Bextz, &
       vdotgradBx = 0.
       vdotgradBy = 0.
       vdotgradBz = 0.
-      call error('externB','unknown string in call to externBfield')
 
  end select
  
@@ -214,15 +220,18 @@ subroutine get_fext(magMomx,magMomy,magMomz,xi,yi,zi,r0, &
 !
 !  calculate J_ext x B_ext
 !
+
+
  currJextBextx = CurrJexty*Bextz - CurrJextz*Bexty
  currJextBexty = CurrJextz*Bextx - CurrJextx*Bextz
  currJextBextz = CurrJextx*Bexty - CurrJexty*Bextx 
 !
 !  calculate fext
 !
- fextx = 0*(currJextBextx)*(drhoi)
- fexty = 0*(currJextBexty)*(drhoi)
- fextz = 0*(currJextBextz)*(drhoi)
+
+ fextx = (currJextBextx)*(drhoi)
+ fexty = (currJextBexty)*(drhoi)
+ fextz = (currJextBextz)*(drhoi)
  return
 end subroutine get_fext
 
@@ -234,13 +243,14 @@ end subroutine get_fext
 !--------------------------------------------------------
 subroutine get_gradB(scaleFactor,sqrtscaleFactor,magMomx,magMomy,magMomz,xi,yi,zi,rad,r0,&
          dBextxdx,dBextxdy,dBextxdz,dBextydx,dBextydy,dBextydz,dBextzdx,dBextzdy,dBextzdz)
- use dim, only:divergencebool
+ use physcon, only:pi
  real, intent(in)  :: magMomx,magMomy,magMomz
  real, intent(in)  :: xi,yi,zi,scaleFactor,rad
  real, intent(in)  :: r0,sqrtscaleFactor
  real, intent(out) :: dBextxdx,dBextxdy,dBextxdz
  real, intent(out) :: dBextydx,dBextydy,dBextydz
  real, intent(out) :: dBextzdx,dBextzdy,dBextzdz
+ real :: wavelength,wk
 
  dBextxdx = 0.
  dBextxdy = 0.
@@ -252,12 +262,18 @@ subroutine get_gradB(scaleFactor,sqrtscaleFactor,magMomx,magMomy,magMomz,xi,yi,z
  dBextzdy = 0.
  dBextzdz = 0.
  
- if (divergencebool) then
+ if (divergence_advection) then
+   if (rad < r0) then
     dBextxdx = 8*sqrtscaleFactor*xi*((rad**2)/r0**8)*(-r0**4 + rad**4)
     dBextxdy = 8*sqrtscaleFactor*yi*((rad**2)/r0**8)*(-r0**4 + rad**4)
-    dBextxdy = 8*sqrtscaleFactor*zi*((rad**2)/r0**8)*(-r0**4 + rad**4)
+    dBextxdz = 8*sqrtscaleFactor*zi*((rad**2)/r0**8)*(-r0**4 + rad**4)
+   endif
+ else if (alfvenbool) then
+   wavelength = 1.
+   wk = 2.*pi/wavelength 
+   dBextydx = ampl*wk*cos(wk*xi)
  else
-    dBextxdx = scaleFactor*(-6*magMomx*(xi**3)+9*((yi**2)+(zi**2))+3*(magMomy*yi+magMomz*zi)  &
+    dBextxdx = scaleFactor*(-6*magMomx*(xi**3)+9*magMomx*xi*((yi**2)+(zi**2))+3*(magMomy*yi+magMomz*zi)  &
             *(-4*(xi**2)+(yi**2)+(zi**2)))/(rad**7)
     dBextxdy = 3*scaleFactor*(-5*magMomz*(xi*yi*zi)+magMomy*xi*((xi**2)-4*(yi**2)+(zi**2))   &
             +magMomx*yi*(-4*(xi**2)+(yi**2)+(zi**2)))/(rad**7)
@@ -285,7 +301,6 @@ end subroutine get_gradB
 !+
 !------------------------------------------------------------
 real function Bexternal(xcoord,ycoord,zcoord,icomponent)
- use io, only:fatal
  integer, intent(in) :: icomponent
  real,    intent(in) :: xcoord,ycoord,zcoord
  real :: dumx,dumy,dumz,Bextx,Bexty,Bextz
@@ -306,7 +321,6 @@ real function Bexternal(xcoord,ycoord,zcoord,icomponent)
     Bexternal= Bextz
  case default
     Bexternal = 0.
-    call fatal('Bexternal','error in Bexternal call')
  end select
 
 end function Bexternal
@@ -319,7 +333,6 @@ end function Bexternal
 !------------------------------------------------------------
 subroutine gradBexternal(xcoord,ycoord,zcoord,dBextxdx,dBextxdy,dBextxdz, &
                         dBextydx,dBextydy,dBextydz,dBextzdx,dBextzdy,dBextzdz)
- use io, only:fatal
  real,    intent(in)  :: xcoord,ycoord,zcoord
  real,    intent(out) :: dBextxdx,dBextxdy,dBextxdz
  real,    intent(out) :: dBextydx,dBextydy,dBextydz
@@ -366,6 +379,8 @@ subroutine write_options_externB(iunit)
 
  write(iunit,"(/,a)") '# options relating to force from external magnetic field'
  call write_inopt(Bstar_cgs,'Bstar','magnetic field strength in Gauss at stellar surface',iunit)
+ call write_inopt(divergence_advection,'divergence_advection','divergence_advection testing',iunit)
+ call write_inopt(alfvenbool,'alfvenbool','Alfven wave testing',iunit)
 
 end subroutine write_options_externB
 
@@ -375,7 +390,6 @@ end subroutine write_options_externB
 !+
 !-----------------------------------------------------------------------
 subroutine read_options_externB(name,valstring,imatch,igotall,ierr)
- use io,      only:fatal
  use physcon, only:pi
  character(len=*), intent(in)  :: name,valstring
  logical,          intent(out) :: imatch,igotall
@@ -385,11 +399,17 @@ subroutine read_options_externB(name,valstring,imatch,igotall,ierr)
 
  imatch  = .true.
  igotall = .false.
-
+ 
  select case(trim(name))
  case('Bstar')
     ngot = ngot + 1
     read(valstring,*,iostat=ierr) Bstar_cgs
+ case('divergence_advection')
+      ngot = ngot + 1
+      read(valstring,*,iostat=ierr) divergence_advection
+ case('alfvenbool')
+      ngot = ngot + 1
+      read(valstring,*,iostat=ierr) alfvenbool
  case default
     imatch = .false.
  end select

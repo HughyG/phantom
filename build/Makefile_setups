@@ -661,7 +661,6 @@ ifeq ($(SETUP), divergadvec)
     MHD=yes
     PERIODIC=yes
     KNOWN_SETUP=yes
-    DIVERGENCEADVEC=yes
     KERNEL=quintic
 endif
 

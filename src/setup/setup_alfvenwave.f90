@@ -34,14 +34,15 @@ module setup
  logical :: rotated
  real    :: wavelength, ampl
 
- integer, parameter :: maxwaves = 6
+ integer, parameter :: maxwaves = 7
  character(len=*), parameter :: wavetype(0:maxwaves-1) = &
       (/'non-linear circularly polarised Alfven wave', &
         'linear fast wave                           ', &
         'linear Alfven wave                         ', &
         'linear slow wave                           ', &
         'linear entropy wave                        ', &
-        'circularly polarised Alfven wave with Bext '/)
+        'circularly polarised Alfven wave w/ Bextx  ', &
+        'circularly polarized alfven wave w/ Bext   '/)
 
  public :: set_perturbation,cons_to_prim,untransform_vec ! to avoid compiler warnings
 
@@ -72,6 +73,7 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
                           set_rotation_angles,coord_transform
  use timestep,       only:tmax,dtmax
  use mpidomain,      only:i_belong
+ use extern_Bfield,  only:alfvenbool
  integer,           intent(in)    :: id
  integer,           intent(out)   :: npart
  integer,           intent(out)   :: npartoftype(:)
@@ -152,13 +154,13 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
     if (iselect==4) vzero(1) = 1.
     call get_eigenvector(iselect,rvec)
     call get_amplitudes(iselect,Bzero,sqrt(gamma*przero/rhozero),rhozero,uuzero,przero,ampl,drho,dv,dB,du,vwave)
- case(5)
+ case(5:6)
     ampl   = 0.1
     przero = 0.1
     Bzero  = (/0.,0.,0./)
     vzero  = 0.
     uuzero = przero/(gam1*rhozero)
-    vwave  = sqrt(dot_product(Bzero,Bzero)/rhozero) ! Alfven speed
+    vwave  = 1 ! Alfven speed
     iexternalforce = iext_externB
  case default
     ampl   = 0.1
@@ -233,6 +235,14 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
 
        !q = q0 + ampl*rvec*cosx1
        !call cons_to_prim(q,rhoi,vvec,Bvec,uui)
+    case(5)
+      vvec = vzero + ampl*(/0.,sinx1,cosx1/)
+      Bvec = Bzero + ampl*(/0.,sinx1,cosx1/)
+      uui  = uuzero
+    case(6)
+      vvec = vzero + ampl*(/0.,sinx1,cosx1/)
+      Bvec = Bzero 
+      uui  = uuzero
     case default
        vvec = vzero + ampl*(/0.,sinx1,cosx1/)
        bvec = Bzero + ampl*(/0.,sinx1,cosx1/)
@@ -248,8 +258,11 @@ subroutine setpart(id,npart,npartoftype,xyzh,massoftype,vxyzu,&
 
  if (mhd) ihavesetupB = .true.
 
- tmax = wavelength/vwave
- dtmax = 0.1*tmax
+ tmax = 2*wavelength/vwave
+ dtmax = 0.1*wavelength/vwave
+ !if (iexternalforce == iext_externB) then
+    alfvenbool = .true.
+! endif
 
 contains
 

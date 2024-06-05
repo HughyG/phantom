@@ -601,6 +601,9 @@ pure subroutine get_density_sums(i,xpartveci,hi,hi1,hi21,iamtypei,iamgasi,iamdus
  use part,     only:iphase,iamgas,iamdust,iamtype,maxphase,ibasetype,igas,idust,rhoh,massoftype,iradxi
  use dim,      only:ndivcurlv,gravity,maxp,nalpha,use_dust,do_radiation
  use options,  only:implicit_radiation
+ use extern_Bfield, only:Bexternal
+ use externalforces, only:iext_externB
+ use options,   only:iexternalforce
  integer,      intent(in)    :: i
  real,         intent(in)    :: xpartveci(:)
  real(kind=8), intent(in)    :: hi,hi1,hi21
@@ -811,9 +814,18 @@ pure subroutine get_density_sums(i,xpartveci,hi,hi1,hi21,iamtypei,iamgasi,iamdus
                 ! or worst case it runs another iteration and re-calculates
                 rhoi = rhoh(real(hi),  massoftype(igas))
                 rhoj = rhoh(xyzh(4,j), massoftype(igas))
-                dBx = xpartveci(iBevolxi)*rhoi - Bevol(1,j)*rhoj
-                dBy = xpartveci(iBevolyi)*rhoi - Bevol(2,j)*rhoj
-                dBz = xpartveci(iBevolzi)*rhoi - Bevol(3,j)*rhoj
+                if (iexternalforce == iext_externB) then
+                  dBx = (xpartveci(iBevolxi)+Bexternal(xyzh(1,i),xyzh(2,i),xyzh(3,i),1))*rhoi &
+                  - (Bevol(1,j)+Bexternal(xyzh(1,j),xyzh(2,j),xyzh(3,j),1))*rhoj
+                  dBy = (xpartveci(iBevolyi)+Bexternal(xyzh(1,i),xyzh(2,i),xyzh(3,i),2))*rhoi & 
+                  - (Bevol(2,j)+Bexternal(xyzh(1,j),xyzh(2,j),xyzh(3,j),2))*rhoj
+                  dBz = (xpartveci(iBevolzi)+Bexternal(xyzh(1,i),xyzh(2,i),xyzh(3,i),3))*rhoi & 
+                  - (Bevol(3,j)+Bexternal(xyzh(1,j),xyzh(2,j),xyzh(3,j),3))*rhoj
+                else 
+                  dBx = xpartveci(iBevolxi)*rhoi - Bevol(1,j)*rhoj
+                  dBy = xpartveci(iBevolyi)*rhoi - Bevol(2,j)*rhoj
+                  dBz = xpartveci(iBevolzi)*rhoi - Bevol(3,j)*rhoj
+                end if
                 projdB = dBx*runix + dBy*runiy + dBz*runiz
 
                 ! difference operator of divB

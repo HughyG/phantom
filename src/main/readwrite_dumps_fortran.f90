@@ -62,14 +62,16 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
                  rad,rad_label,radprop,radprop_label,do_radiation,maxirad,maxradprop,itemp,igasP,igamma,&
                  iorig,iX,iZ,imu,nucleation,nucleation_label,n_nucleation,tau,itau_alloc,tau_lucy,itauL_alloc,&
                  luminosity,eta_nimhd,eta_nimhd_label
- use part,  only:metrics,metricderivs,tmunus
- use options,    only:use_dustfrac,use_porosity,use_var_comp,icooling
+ use part,  only:metrics,metricderivs,tmunus,fxyzu
+ use options,    only:use_dustfrac,use_porosity,use_var_comp,icooling,iexternalforce
  use dump_utils, only:tag,open_dumpfile_w,allocate_header,&
                  free_header,write_header,write_array,write_block_header
  use mpiutils,   only:reduce_mpi,reduceall_mpi,start_threadwrite,end_threadwrite
  use timestep,   only:dtmax,idtmax_n,idtmax_frac
  use part,       only:ibin,krome_nmols,T_gas_cool
  use metric_tools, only:imetric, imet_et
+ use extern_Bfield, only:Bexternal
+ use externalforces,only:iext_externB
  real,             intent(in) :: t
  character(len=*), intent(in) :: dumpfile
  integer,          intent(in), optional :: iorder(:)
@@ -80,12 +82,13 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
  integer(kind=8)    :: ilen(4)
  integer            :: nums(ndatatypes,4)
  integer            :: ipass,k,l,ioffset
- integer            :: ierr,nerr
+ integer            :: ierr,nerr,i,j
  integer            :: nblocks,nblockarrays,narraylengths
  integer(kind=8)    :: nparttot
  logical            :: sphNGdump,write_itype,use_gas
  character(len=lenid)  :: fileid
  character(len=120)    :: blankarray
+ character(len=5)     :: label_bext(3)
  type(dump_h)          :: hdr
  real, allocatable :: temparr(:)
 !
@@ -329,6 +332,18 @@ subroutine write_fulldump_fortran(t,dumpfile,ntotal,iorder,sphNG)
              call write_array(4,eta_nimhd,eta_nimhd_label,4,npart,k,ipass,idump,nums,nerr)
              if (nerr > 0) call error('write_dump','error writing non-ideal MHD arrays')
           endif
+          if (.true.) then
+            if (.not.allocated(temparr)) allocate(temparr(npart))
+            !label_bext = (/ 'Bextx', 'Bexty', 'Bextz' /)
+            label_bext = (/ 'fx', 'fy', 'fz' /)
+            do i=1,3
+               do j=1,npart
+                  !temparr(j) = Bexternal(xyzh(1,j),xyzh(2,j),xyzh(3,j),i)
+                  temparr(j) = fxyzu(i,j)
+               enddo
+               call write_array(4,temparr,label_bext(i),npart,k,ipass,idump,nums,nerr)
+            enddo
+         endif
        endif
     enddo
     if (ipass==1) call write_block_header(narraylengths,ilen,nums,idump,ierr)

@@ -65,7 +65,7 @@ subroutine compute_energies(t)
  use dim,            only:maxp,maxvxyzu,maxalpha,maxtypes,mhd_nonideal,maxp_hard,&
                           lightcurve,use_dust,maxdusttypes,do_radiation,gr,use_krome
  use part,           only:rhoh,xyzh,vxyzu,massoftype,npart,maxphase,iphase,&
-                          alphaind,Bevol,divcurlB,iamtype,igamma,&
+                          alphaind,Bxyz,divcurlB,iamtype,igamma,&
                           igas,idust,iboundary,istar,idarkmatter,ibulge,&
                           nptmass,xyzmh_ptmass,vxyz_ptmass,fxyz_ptmass,isdeadh,&
                           isdead_or_accreted,epot_sinksink,imacc,ispinx,ispiny,&
@@ -167,7 +167,7 @@ subroutine compute_energies(t)
 !$omp shared(xyzh,vxyzu,pxyzu,rad,iexternalforce,npart,t,id) &
 !$omp shared(alphaind,massoftype,irealvisc,iu) &
 !$omp shared(ieos,gamma,nptmass,xyzmh_ptmass,vxyz_ptmass,xyzcom) &
-!$omp shared(Bevol,divcurlB,iphase,poten,dustfrac,use_dustfrac) &
+!$omp shared(Bxyz,divcurlB,iphase,poten,dustfrac,use_dustfrac) &
 !$omp shared(use_ohm,use_hall,use_ambi,nden_nimhd,eta_nimhd,eta_constant) &
 !$omp shared(ev_data,np_rho,erot_com,calc_erot,gas_only,track_mass) &
 !$omp shared(calc_gravitwaves) &
@@ -417,9 +417,9 @@ subroutine compute_energies(t)
 
           ! mhd parameters
           if (mhd) then
-             Bxi       = Bevol(1,i)*rhoi
-             Byi       = Bevol(2,i)*rhoi
-             Bzi       = Bevol(3,i)*rhoi
+             Bxi       = Bxyz(1,i)
+             Byi       = Bxyz(2,i)
+             Bzi       = Bxyz(3,i)
              B2i       = Bxi*Bxi + Byi*Byi + Bzi*Bzi
              Bi        = sqrt(B2i)
              rho1i     = 1./rhoi

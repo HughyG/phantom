@@ -921,12 +921,13 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
  use timestep_ind,only:get_dt
 #endif
  use timestep,    only:bignumber
- use options,     only:overcleanfac,use_dustfrac,ireconav,limit_radiation_flux
+ use options,     only:overcleanfac,use_dustfrac,ireconav,limit_radiation_flux,iexternalforce
  use units,       only:get_c_code
  use metric_tools,only:imet_minkowski,imetric
  use utils_gr,    only:get_bigv
  use radiation_utils, only:get_rad_R
- use extern_Bfield,   only:gradBexternal
+ use extern_Bfield,   only:gradBexternal,Bexternal
+ use externalforces,  only:iext_externB
  integer,         intent(in)    :: i
  logical,         intent(in)    :: iamgasi,iamdusti
  real,            intent(in)    :: xpartveci(:)
@@ -976,6 +977,7 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
  real    :: visctermisoj,visctermanisoj,enj,hj,mrhoj5,alphaj,pmassj,rho1j
  real    :: rhoj,prj,rhoav1,dBextxdx,dBextxdy,dBextxdz
  real    :: dBextevoltermx,dBextevoltermy,dBextevoltermz
+ real    :: Bextx,Bexty,Bextz,Bgradvtermx,Bgradvtermy,Bgradvtermz
  real    :: dbextydx,dbextydy,dbextydz,dbextzdx,dbextzdy,dbextzdz
  real    :: hj1,hj21,q2j,qj,vwavej,divvj
  real    :: dvdxi(9),dvdxj(9)
@@ -1638,19 +1640,34 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
              !
              ! Bext term for dBevol/dt equation
              !
-             if (mhd) then
+             dBextevoltermx = 0.
+             dBextevoltermy = 0.
+             dBextevoltermz = 0.
+             Bextx = 0.
+             Bexty = 0.
+             Bextz = 0.
+             Bgradvtermx = 0.
+             Bgradvtermy = 0.
+             Bgradvtermz = 0.          
+             if (iexternalforce==iext_externB) then
                 call gradBexternal(xi,yi,zi,dBextxdx,dBextxdy,dBextxdz, &
                      dBextydx,dBextydy,dBextydz,dBextzdx,dBextzdy,dBextzdz)     
                 dBextevoltermx = vxi*dBextxdx + vyi*dBextxdy + vzi*dBextxdz
                 dBextevoltermy = vxi*dBextydx + vyi*dBextydy + vzi*dBextydz
                 dBextevoltermz = vxi*dBextzdx + vyi*dBextzdy + vzi*dBextzdz
+                Bextx = Bexternal(xi,yi,zi,1)
+                Bexty = Bexternal(xi,yi,zi,2)
+                Bextz = Bexternal(xi,yi,zi,3)
+                Bgradvtermx = (Bextx/rhoi)*divcurlv(1,i)
+                Bgradvtermy = (Bexty/rhoi)*divcurlv(1,i)
+                Bgradvtermz = (Bextz/rhoi)*divcurlv(1,i) 
              endif
              !
              ! dB/dt evolution equation
              !
-             dBevolx = dBrhoterm*dvx + dBdissterm*dBx - dpsiterm*runix - dBnonideal(1) !- dBextevoltermx/rhoi
-             dBevoly = dBrhoterm*dvy + dBdissterm*dBy - dpsiterm*runiy - dBnonideal(2) !- dBextevoltermy/rhoi
-             dBevolz = dBrhoterm*dvz + dBdissterm*dBz - dpsiterm*runiz - dBnonideal(3) !- dBextevoltermz/rhoi
+             dBevolx = dBrhoterm*dvx + 0*dBdissterm*dBx - 0*dpsiterm*runix - dBnonideal(1) - dBextevoltermx/rhoi  !- Bgradvtermx
+             dBevoly = dBrhoterm*dvy + 0*dBdissterm*dBy - 0*dpsiterm*runiy - dBnonideal(2) - dBextevoltermy/rhoi  !- Bgradvtermy
+             dBevolz = dBrhoterm*dvz + 0*dBdissterm*dBz - 0*dpsiterm*runiz - dBnonideal(3) - dBextevoltermz/rhoi  !- Bgradvtermz
           endif
           !
           !--get projection of anisotropic part of stress tensor
