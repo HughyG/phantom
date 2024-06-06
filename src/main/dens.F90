@@ -590,7 +590,7 @@ end subroutine densityiterate
 !  MAKE SURE THIS ROUTINE IS INLINED BY THE COMPILER
 !+
 !----------------------------------------------------------------
-pure subroutine get_density_sums(i,xpartveci,hi,hi1,hi21,iamtypei,iamgasi,iamdusti,&
+subroutine get_density_sums(i,xpartveci,hi,hi1,hi21,iamtypei,iamgasi,iamdusti,&
                                  listneigh,nneigh,nneighi,dxcache,xyzcache,rhosum,&
                                  ifilledcellcache,ifilledneighcache,getdv,getdB,&
                                  realviscosity,xyzh,vxyzu,Bxyz,Bevol,fxyzu,fext,ignoreself,rad)
@@ -1204,7 +1204,7 @@ end subroutine reduce_and_print_neighbour_stats
 !--------------------------------------------------------------------------
 !+
 !--------------------------------------------------------------------------
-pure subroutine compute_cell(cell,listneigh,nneigh,getdv,getdB,Bxyz,Bevol,xyzh,vxyzu,fxyzu,fext, &
+subroutine compute_cell(cell,listneigh,nneigh,getdv,getdB,Bxyz,Bevol,xyzh,vxyzu,fxyzu,fext, &
                              xyzcache,rad)
  use part,        only:get_partinfo,iamgas,igas,maxphase
  use viscosity,   only:irealvisc
